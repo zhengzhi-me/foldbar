@@ -8,13 +8,12 @@
 
 import AppKit
 import HotKey
-import ServiceManagement
 
 @NSApplicationMain
 
 class AppDelegate: NSObject, NSApplicationDelegate{
     
-    var statusBarController = StatusBarController()
+    lazy var statusBarController = StatusBarController()
     
     var hotKey: HotKey? {
         didSet {
@@ -27,11 +26,12 @@ class AppDelegate: NSObject, NSApplicationDelegate{
     }
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        setupAutoStartApp()
         registerDefaultValues()
+        detectLTRLang()
+        _ = statusBarController
+        setupAutoStartApp()
         setupHotKey()
         openPreferencesIfNeeded()
-        detectLTRLang()
     }
     
     func openPreferencesIfNeeded() {
@@ -39,20 +39,16 @@ class AppDelegate: NSObject, NSApplicationDelegate{
             Util.showPrefWindow()
         }
     }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        Util.showPrefWindow()
+        return true
+    }
     
     func setupAutoStartApp() {
-        removeLegacyLauncherLoginItem()
         Util.setUpAutoStart(isAutoStart: Preferences.isAutoStart)
     }
 
-    private func removeLegacyLauncherLoginItem() {
-        // Builds before the SMAppService migration registered a helper app in BTM;
-        // macOS never garbage-collects that record (TN3111), so deauthorize it once.
-        let migratedKey = "smAppServiceMigrated"
-        guard !UserDefaults.standard.bool(forKey: migratedKey) else { return }
-        SMLoginItemSetEnabled("com.dwarvesv.LauncherApplication" as CFString, false)
-        UserDefaults.standard.set(true, forKey: migratedKey)
-    }
     
     func registerDefaultValues() {
          UserDefaults.standard.register(defaults: [
@@ -61,11 +57,13 @@ class AppDelegate: NSObject, NSApplicationDelegate{
             UserDefaults.Key.isAutoHide: true,
             UserDefaults.Key.numberOfSecondForAutoHide: 10.0,
             UserDefaults.Key.areSeparatorsHidden: false,
-            UserDefaults.Key.alwaysHiddenSectionEnabled: false
+            UserDefaults.Key.alwaysHiddenSectionEnabled: true,
+            UserDefaults.Key.useFullStatusBarOnExpandEnabled: true
          ])
     }
     
     func setupHotKey() {
+        hotKey = nil
         guard let globalKey = Preferences.globalKey else {return}
         hotKey = HotKey(keyCombo: KeyCombo(carbonKeyCode: globalKey.keyCode, carbonModifiers: globalKey.carbonFlags))
     }

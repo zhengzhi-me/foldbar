@@ -867,6 +867,7 @@ between sections to configure Hidden Bar.</string>
                         <outlet property="checkBoxUseFullStatusbar" destination="EQP-7r-FSu" id="Vll-3t-F9V"/>
                         <outlet property="lblAlwayHidden" destination="eBG-Wk-IXv" id="JaJ-0i-o6U"/>
                         <outlet property="statusBarStackView" destination="pJz-eb-ydI" id="huU-as-oWi"/>
+                        <outlet property="settingsStackView" destination="do4-pv-o3U" id="dock-stack-outlet"/>
                         <outlet property="textFieldTitle" destination="RGE-Xv-zm5" id="v43-3R-PwU"/>
                         <outlet property="timePopup" destination="T6r-65-Oor" id="E7R-qd-xOq"/>
                     </connections>

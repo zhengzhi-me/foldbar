@@ -220,6 +220,19 @@ final class NativeVisibilityEngineTests: XCTestCase {
         XCTAssertTrue(visibility.requests.isEmpty)
     }
 
+    func testAlwaysHiddenDividerDisappearsWhileOrdinarySectionIsExpanded() {
+        let engine = makeEngine()
+        engine.updateAlwaysHiddenSection(enabled: true, separatorHidden: false)
+        XCTAssertEqual(items.alwaysHiddenItem?.length, 20)
+        engine.updateAlwaysHiddenSection(enabled: true, separatorHidden: true)
+        visibility.succeed(visibility.requests.count - 1)
+        engine.expand()
+        XCTAssertEqual(items.alwaysHiddenItem?.length, 0)
+        XCTAssertNil(items.alwaysHiddenItem?.button?.image)
+        engine.updateAlwaysHiddenSection(enabled: true, separatorHidden: false)
+        XCTAssertEqual(items.alwaysHiddenItem?.length, 20)
+    }
+
     func testMissingAccessibilityAsksAndRetriesLater() {
         inventory.isAuthorized = false
         let engine = makeEngine()

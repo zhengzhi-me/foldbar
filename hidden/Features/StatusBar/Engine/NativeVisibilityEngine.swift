@@ -215,7 +215,10 @@ final class NativeVisibilityEngine: MenuBarEngine {
     // false, which would make macOS forget where the user placed it.
     private func setSeparatorsVisible(_ visible: Bool) {
         items?.separatorItem.isVisible = false
-        items?.alwaysHiddenItem?.length = visible && alwaysHiddenEnabled ? expandedLength : 0
+        let showDivider = visible && alwaysHiddenEnabled && !alwaysHiddenSeparatorHidden
+        let divider = items?.alwaysHiddenItem
+        divider?.button?.image = showDivider ? NSImage(named: "ic_line") : nil
+        divider?.length = showDivider ? expandedLength : 0
     }
 
     // Any arrangement works: whatever sits left of the arrow is the hidden section.

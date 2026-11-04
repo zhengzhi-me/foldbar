@@ -7,6 +7,8 @@
 */
 
 "Preferences..." = "偏好设置...";
+"Always hide Dock icon" = "始终隐藏 Dock 图标";
+"Hidden Bar controls" = "左键：展开/折叠；折叠时右键：设置与退出；展开时右键：切换持续隐藏区";
 "Toggle Auto Collapse" = "切换自动折叠";
 "Enable Auto Collapse" = "开启自动折叠";
 "Disable Auto Collapse" = "关闭自动折叠";

@@ -9,6 +9,13 @@
 import Foundation
 
 enum Preferences {
+    static var alwaysHideDockIcon: Bool {
+        get { UserDefaults.standard.bool(forKey: UserDefaults.Key.alwaysHideDockIcon) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: UserDefaults.Key.alwaysHideDockIcon)
+            NotificationCenter.default.post(name: .prefsChanged, object: nil)
+        }
+    }
     
     static var globalKey: GlobalKeybindPreferences? {
         get {
@@ -17,6 +24,11 @@ enum Preferences {
         }
         
         set {
+            if newValue == nil {
+                UserDefaults.standard.removeObject(forKey: UserDefaults.Key.globalKey)
+                NotificationCenter.default.post(name: .prefsChanged, object: nil)
+                return
+            }
             guard let data = try? JSONEncoder().encode(newValue) else { return }
             UserDefaults.standard.set(data, forKey: UserDefaults.Key.globalKey)
             

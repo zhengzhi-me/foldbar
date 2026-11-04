@@ -39,6 +39,7 @@ class StatusBarController: MenuBarItemProvider {
     }
     
     private var isToggle = false
+    private lazy var contextMenu = getContextMenu()
 
     private var hoverMonitor: Any?
     private var hoverDwellTimer: Timer?
@@ -138,8 +139,7 @@ class StatusBarController: MenuBarItemProvider {
         if let button = btnSeparate.button {
             button.image = self.imgIconLine
         }
-        let menu = self.getContextMenu()
-        btnSeparate.menu = menu
+        btnSeparate.menu = contextMenu
 
         updateAutoCollapseMenuTitle()
         
@@ -149,6 +149,7 @@ class StatusBarController: MenuBarItemProvider {
             
             button.action = #selector(self.btnExpandCollapsePressed(sender:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            button.toolTip = "Hidden Bar controls".localized
         }
         
         btnExpandCollapse.autosaveName = "hiddenbar_expandcollapse";
@@ -156,27 +157,28 @@ class StatusBarController: MenuBarItemProvider {
     }
     
     @objc func btnExpandCollapsePressed(sender: NSStatusBarButton) {
-        if let event = NSApp.currentEvent {
-
-            let isOptionKeyPressed = event.modifierFlags.contains(NSEvent.ModifierFlags.option)
-
-            if event.type == NSEvent.EventType.leftMouseUp && !isOptionKeyPressed{
-                self.expandCollapseIfNeeded()
-            } else if event.type == NSEvent.EventType.rightMouseUp && !isOptionKeyPressed {
-                // Right-click opens the same context menu the separator has (#356),
-                // making settings reachable from the control everyone clicks.
-                // The separators/always-hidden toggle stays on option-click.
+        guard let event = NSApp.currentEvent else {
+            showContextMenu(from: sender)
+            return
+        }
+        if event.type == .rightMouseUp {
+            if isCollapsed {
                 showContextMenu(from: sender)
             } else {
-                // Both option+left and option+right land here: separators toggle.
-                self.showHideSeparatorsAndAlwayHideArea()
+                showHideSeparatorsAndAlwayHideArea()
             }
+        } else if event.type == .leftMouseUp {
+            expandCollapseIfNeeded()
         }
     }
 
     private func showContextMenu(from button: NSStatusBarButton) {
-        guard let menu = btnSeparate.menu else { return }
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.maxY + 5), in: button)
+        updateAutoCollapseMenuTitle()
+        // Ask the status item to present the menu. On macOS 27 its button can be
+        // hosted remotely; view-relative NSMenu positioning is not reliable.
+        timer?.invalidate()
+        btnExpandCollapse.popUpMenu(contextMenu)
+        autoCollapseIfNeeded()
     }
     
     func showHideSeparatorsAndAlwayHideArea() {
@@ -239,7 +241,7 @@ class StatusBarController: MenuBarItemProvider {
         if let button = btnExpandCollapse.button {
             button.image = Assets.collapseImage
         }
-        if Preferences.useFullStatusBarOnExpandEnabled {
+        if Preferences.useFullStatusBarOnExpandEnabled && !Preferences.alwaysHideDockIcon {
             NSApp.setActivationPolicy(.regular)
         }
     }
@@ -262,7 +264,7 @@ class StatusBarController: MenuBarItemProvider {
         }
         autoCollapseIfNeeded()
         
-        if Preferences.useFullStatusBarOnExpandEnabled {
+        if Preferences.useFullStatusBarOnExpandEnabled && !Preferences.alwaysHideDockIcon {
             NSApp.setActivationPolicy(.regular)
             NSApp.activate(ignoringOtherApps: true)
             
@@ -306,13 +308,15 @@ class StatusBarController: MenuBarItemProvider {
         menu.addItem(toggleAutoHideItem)
 
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit".localized, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        let quitItem = NSMenuItem(title: "Quit".localized, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        quitItem.target = NSApp
+        menu.addItem(quitItem)
         
         return menu
     }
     
     private func updateAutoCollapseMenuTitle() {
-        guard let toggleAutoHideItem = btnSeparate.menu?.item(withTag: 1) else { return }
+        guard let toggleAutoHideItem = contextMenu.item(withTag: 1) else { return }
         if Preferences.isAutoHide {
             toggleAutoHideItem.title = "Disable Auto Collapse".localized
         } else {
@@ -347,18 +351,19 @@ extension StatusBarController {
                 NSStatusBar.system.removeStatusItem(existing)
             }
             self.btnAlwaysHidden = NSStatusBar.system.statusItem(withLength: 0)
-            menuBarEngine.updateAlwaysHiddenSection(enabled: true, separatorHidden: false)
             if let button = btnAlwaysHidden?.button {
                 button.image = self.imgIconLine
                 button.appearsDisabled = true
             }
             self.btnAlwaysHidden?.autosaveName = "hiddenbar_terminate"
             self.btnAlwaysHidden?.isVisible = true
+            menuBarEngine.updateAlwaysHiddenSection(enabled: true, separatorHidden: Preferences.areSeparatorsHidden)
         } else {
             if let existing = self.btnAlwaysHidden {
                 NSStatusBar.system.removeStatusItem(existing)
             }
             self.btnAlwaysHidden = nil
+            menuBarEngine.updateAlwaysHiddenSection(enabled: false, separatorHidden: false)
         }
     }
 }

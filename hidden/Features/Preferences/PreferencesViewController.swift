@@ -36,6 +36,8 @@ class PreferencesViewController: NSViewController {
     
     @IBOutlet weak var btnClear: NSButton!
     @IBOutlet weak var btnShortcut: NSButton!
+    @IBOutlet weak var settingsStackView: NSStackView!
+    private lazy var dockToggle = NSButton(checkboxWithTitle: "Always hide Dock icon".localized, target: self, action: #selector(dockToggleChanged(_:)))
     
     public var listening = false {
         didSet {
@@ -50,6 +52,8 @@ class PreferencesViewController: NSViewController {
     //MARK: - VC Life cycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        settingsStackView.spacing = 6
+        settingsStackView.insertArrangedSubview(dockToggle, at: 3)
         updateData()
         loadHotkey()
         createTutorialView()
@@ -67,6 +71,10 @@ class PreferencesViewController: NSViewController {
     }
     
     //MARK: - Actions
+    @objc private func dockToggleChanged(_ sender: NSButton) {
+        Preferences.alwaysHideDockIcon = sender.state == .on
+        if Preferences.alwaysHideDockIcon { NSApp.setActivationPolicy(.accessory) }
+    }
     @IBAction func loginCheckChanged(_ sender: NSButton) {
         Preferences.isAutoStart = sender.state == .on
     }
@@ -156,6 +164,7 @@ class PreferencesViewController: NSViewController {
     }
     
     @objc private func updateData(){
+        dockToggle.state = Preferences.alwaysHideDockIcon ? .on : .off
         checkBoxUseFullStatusbar.state = Preferences.useFullStatusBarOnExpandEnabled ? .on : .off
         checkBoxLogin.state = Preferences.isAutoStart ? .on : .off
         checkBoxAutoHide.state = Preferences.isAutoHide ? .on : .off
