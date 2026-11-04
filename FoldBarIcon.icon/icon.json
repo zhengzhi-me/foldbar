@@ -1,0 +1,11 @@
+{
+  "fill": { "solid": "extended-srgb:1.00000,1.00000,1.00000,1.00000" },
+  "groups": [
+    {
+      "layers": [{ "image-name": "Mark.svg", "name": "FoldBar mark" }],
+      "specular": false,
+      "translucency": { "enabled": false, "value": 0.0 }
+    }
+  ],
+  "supported-platforms": { "squares": ["macOS"] }
+}

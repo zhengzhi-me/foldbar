@@ -26,6 +26,7 @@ final class PreferencesWindowController: NSWindowController {
 }
 
 private struct FoldBarSettings: View {
+    @AppStorage("foldbarLanguage") private var language = "system"
     @AppStorage(UserDefaults.Key.isAutoStart) private var launchAtLogin = false
     @AppStorage(UserDefaults.Key.alwaysHideDockIcon) private var hideDock = false
     @AppStorage(UserDefaults.Key.isAutoHide) private var autoHide = true
@@ -34,32 +35,59 @@ private struct FoldBarSettings: View {
     @State private var monitor: Any?
     @State private var status = ""
     @State private var checking = false
-    @State private var newer = false
+    @State private var releaseURL: URL?
     private let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0"
     private let repo = URL(string: "https://github.com/zhengzhi-me/foldbar")!
 
     var body: some View {
+        if #available(macOS 14.0, *) {
+            settingsForm.focusEffectDisabled()
+        } else {
+            settingsForm
+        }
+    }
+
+    private var settingsForm: some View {
         Form {
-            Section("操作说明") {
-                Label("按住 ⌘ 拖动菜单栏图标，调整图标分区。", systemImage: "command")
-                Label("左键点按 < 展开隐藏图标；点按 > 收起。", systemImage: "chevron.left")
-                Label("折叠时右键点按 <，打开设置与退出菜单。", systemImage: "gearshape")
-                Label("展开时右键点按 >，切换持续隐藏区。", systemImage: "eye.slash")
+            Section("How to use".localized) {
+                guideRow("command") { Text("Hold ⌘ and drag menu bar icons to arrange them.".localized) }
+                guideRow("chevron.left") {
+                    Text("Click".localized)
+                    arrowBadge("chevron.left", label: "<")
+                    Text("to reveal; click".localized)
+                    arrowBadge("chevron.right", label: ">")
+                    Text("to collapse.".localized)
+                }
+                guideRow("gearshape") {
+                    Text("When collapsed, right-click".localized)
+                    arrowBadge("chevron.left", label: "<")
+                    Text("for Settings and Quit.".localized)
+                }
+                guideRow("eye.slash") {
+                    Text("When expanded, right-click".localized)
+                    arrowBadge("chevron.right", label: ">")
+                    Text("to toggle the always-hidden section.".localized)
+                }
             }
-            Section("偏好设置") {
-                Toggle("在登录时启动", isOn: $launchAtLogin)
+            Section("Preferences".localized) {
+                Picker("Language".localized, selection: $language) {
+                    Text("System default".localized).tag("system")
+                    Text("简体中文").tag("zh-Hans")
+                    Text("English").tag("en")
+                }.pickerStyle(.menu)
+                Toggle("Launch at login".localized, isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { Util.setUpAutoStart(isAutoStart: $0) }
-                Toggle("始终隐藏 Dock 图标", isOn: $hideDock)
+                Toggle("Always hide Dock icon".localized, isOn: $hideDock)
                     .onChange(of: hideDock) { if $0 { NSApp.setActivationPolicy(.accessory) } }
                 LabeledContent {
-                    Picker("等待时间", selection: $seconds) {
-                        ForEach([5.0, 10, 15, 30, 60], id: \.self) { Text("\(Int($0)) 秒").tag($0) }
+                    Picker("Delay".localized, selection: $seconds) {
+                        ForEach([5.0, 10, 15, 30, 60], id: \.self) { Text(String(format: "%d seconds".localized, Int($0))).tag($0) }
                     }.labelsHidden().disabled(!autoHide)
-                } label: { Toggle("自动隐藏图标", isOn: $autoHide) }
-                LabeledContent("全局快捷键") {
-                    Button(monitor != nil ? "请按快捷键…" : shortcut?.description ?? "录制快捷键", action: recordShortcut)
+                } label: { Toggle("Auto collapse".localized, isOn: $autoHide) }
+                LabeledContent("Global shortcut".localized) {
+                    Button(monitor != nil ? "Press a shortcut…".localized : shortcut?.description ?? "Record shortcut".localized, action: recordShortcut)
                     if shortcut != nil {
-                        Button("清除") {
+                        Button("Clear".localized) {
                             stopRecording()
                             shortcut = nil
                             Preferences.globalKey = nil
@@ -68,20 +96,41 @@ private struct FoldBarSettings: View {
                     }
                 }
             }
-            Section("项目信息") {
-                LabeledContent("当前版本", value: version)
+            Section("Project information".localized) {
+                LabeledContent("Current version".localized, value: version)
                 Link(destination: repo) { Label("GitHub · zhengzhi-me/foldbar", systemImage: "chevron.left.forwardslash.chevron.right") }
                 LabeledContent {
-                    Button("检查更新") { Task { await checkUpdates() } }.disabled(checking)
-                } label: { Text(status.isEmpty ? "软件更新" : status) }
-                if newer { Link("查看发行版本", destination: repo.appendingPathComponent("releases/latest")) }
+                    Button("Check for updates".localized) { Task { await checkUpdates() } }.disabled(checking)
+                } label: { Text(status.isEmpty ? "Software updates".localized : status) }
+                if let releaseURL { Link("View release".localized, destination: releaseURL) }
             }
         }
         .formStyle(.grouped)
         .frame(minWidth: 510, minHeight: 445)
+        .onChange(of: language) { _ in status = ""; releaseURL = nil; notifyPreferences() }
         .onChange(of: autoHide) { _ in notifyPreferences() }
         .onChange(of: seconds) { _ in notifyPreferences() }
         .onDisappear { stopRecording() }
+    }
+
+    private func guideRow<Content: View>(_ symbol: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .center, spacing: 4) {
+            Image(systemName: symbol)
+                .font(.system(size: 14, weight: .medium))
+                .frame(width: 22, height: 22)
+                .foregroundStyle(.secondary)
+                .padding(.trailing, 6)
+                .accessibilityHidden(true)
+            content()
+        }
+    }
+
+    private func arrowBadge(_ symbol: String, label: String) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 10, weight: .semibold))
+            .frame(width: 19, height: 19)
+            .background(.secondary.opacity(0.13), in: RoundedRectangle(cornerRadius: 4))
+            .accessibilityLabel(Text(label))
     }
 
     private func notifyPreferences() {
@@ -115,23 +164,33 @@ private struct FoldBarSettings: View {
     }
 
     @MainActor private func checkUpdates() async {
-        struct Release: Decodable { let tag_name: String }
+        struct Release: Decodable { let tag_name: String; let draft: Bool }
         checking = true
-        newer = false
-        status = "正在检查…"
+        releaseURL = nil
+        status = "Checking…".localized
         defer { checking = false }
         do {
-            let url = URL(string: "https://api.github.com/repos/zhengzhi-me/foldbar/releases/latest")!
-            let (data, response) = try await URLSession.shared.data(for: URLRequest(url: url, timeoutInterval: 12))
-            if (response as? HTTPURLResponse)?.statusCode == 404 { status = "暂未发布更新"; return }
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else { status = "暂时无法检查更新"; return }
-            let tag = try JSONDecoder().decode(Release.self, from: data).tag_name
-            let value = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
-            guard value.range(of: #"^[0-9]+\.[0-9]+\.[0-9]+$"#, options: .regularExpression) != nil else {
-                status = "暂未发布正式版本"; return
+            let url = URL(string: "https://api.github.com/repos/zhengzhi-me/foldbar/releases?per_page=30")!
+            var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 15)
+            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { status = "Could not check for updates".localized; return }
+            let versions = try JSONDecoder().decode([Release].self, from: data)
+                .filter { !$0.draft }
+                .compactMap { release -> (tag: String, number: String)? in
+                    let number = release.tag_name.hasPrefix("v") ? String(release.tag_name.dropFirst()) : release.tag_name
+                    guard number.range(of: #"^[0-9]+\.[0-9]+\.[0-9]+$"#, options: .regularExpression) != nil else { return nil }
+                    return (release.tag_name, number)
+                }
+            guard let latest = versions.max(by: { $0.number.compare($1.number, options: .numeric) == .orderedAscending }) else {
+                status = "No updates published yet".localized; return
             }
-            newer = value.compare(version, options: .numeric) == .orderedDescending
-            status = newer ? "发现新版 \(tag)" : "已是最新版本"
-        } catch { status = "暂时无法检查更新" }
+            if latest.number.compare(version, options: .numeric) == .orderedDescending {
+                releaseURL = repo.appendingPathComponent("releases/tag/").appendingPathComponent(latest.tag)
+                status = String(format: "Update available: %@".localized, latest.tag)
+            } else {
+                status = "Up to date".localized
+            }
+        } catch { status = "Could not check for updates".localized }
     }
 }

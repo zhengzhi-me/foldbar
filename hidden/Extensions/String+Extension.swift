@@ -12,6 +12,12 @@ extension String {
     
     // localize
     var localized: String {
-        return NSLocalizedString(self, comment: self)
+        if let language = UserDefaults.standard.string(forKey: "foldbarLanguage"),
+           ["en", "zh-Hans"].contains(language),
+           let path = Bundle.main.path(forResource: language, ofType: "lproj"),
+           let bundle = Bundle(path: path) {
+            return bundle.localizedString(forKey: self, value: self, table: nil)
+        }
+        return Bundle.main.localizedString(forKey: self, value: self, table: nil)
     }
 }

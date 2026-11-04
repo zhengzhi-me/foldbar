@@ -177,6 +177,8 @@ class StatusBarController: MenuBarItemProvider {
         // Ask the status item to present the menu. On macOS 27 its button can be
         // hosted remotely; view-relative NSMenu positioning is not reliable.
         timer?.invalidate()
+        contextMenu.items.first?.title = "Preferences...".localized
+        contextMenu.items.last?.title = "Quit".localized
         btnExpandCollapse.popUpMenu(contextMenu)
         autoCollapseIfNeeded()
     }
